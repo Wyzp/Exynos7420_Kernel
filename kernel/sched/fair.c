@@ -1583,11 +1583,13 @@ static inline void __update_group_entity_contrib(struct sched_entity *se) {}
  * tweaking suit particular needs.
  */
 
-unsigned int hmp_up_threshold = 479;
-unsigned int hmp_down_threshold = 214;
 
-unsigned int hmp_semiboost_up_threshold = 400;
-unsigned int hmp_semiboost_down_threshold = 150;
+static unsigned int hmp_up_threshold = 479;
+static unsigned int hmp_down_threshold = 214;
+
+static unsigned int hmp_semiboost_up_threshold = 400;
+static unsigned int hmp_semiboost_down_threshold = 150;
+
 
 /*
  * Needed to determine heaviest tasks etc.
@@ -3720,10 +3722,10 @@ static DEFINE_RAW_SPINLOCK(hmp_sysfs_lock);
 #define YIELD_CORRECTION_TIME 10000000 /* nanoseconds */
 
 #ifdef CONFIG_SCHED_HMP_PRIO_FILTER
-unsigned int hmp_up_prio = NICE_TO_PRIO(CONFIG_SCHED_HMP_PRIO_FILTER_VAL);
+static unsigned int hmp_up_prio = NICE_TO_PRIO(CONFIG_SCHED_HMP_PRIO_FILTER_VAL);
 #endif
-unsigned int hmp_next_up_threshold = 4096;
-unsigned int hmp_next_down_threshold = 4096;
+static unsigned int hmp_next_up_threshold = 4096;
+static unsigned int hmp_next_down_threshold = 4096;
 
 static inline int hmp_boost(void)
 {
@@ -3889,7 +3891,7 @@ static u64 hmp_variable_scale_convert(u64 delta)
 	u64 high = delta >> 32ULL;
 	u64 low = delta & 0xffffffffULL;
 
-	if (hmp_semiboost()) {
+	if (hmp_semiboost_val) {
 		low *= hmp_data.semiboost_multiplier;
 		high *= hmp_data.semiboost_multiplier;
 	} else {
@@ -4166,7 +4168,7 @@ int set_hmp_aggressive_yield(int enable)
 
 int get_hmp_boost(void)
 {
-	return hmp_boost();
+	return hmp_boost() ? 1 : 0;
 }
 
 int get_hmp_semiboost(void)
