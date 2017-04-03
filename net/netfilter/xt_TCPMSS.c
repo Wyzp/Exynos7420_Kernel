@@ -53,6 +53,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	const struct xt_tcpmss_info *info = par->targinfo;
 	struct tcphdr *tcph;
 	unsigned int tcplen, i;
+	int tcphlen;
 	__be16 oldval;
 	u16 newmss;
 	u8 *opt;
@@ -66,6 +67,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 
 	tcplen = skb->len - tcphoff;
 	tcph = (struct tcphdr *)(skb_network_header(skb) + tcphoff);
+	tcphlen = tcph->doff * 4;
 
 	/* Header cannot be larger than the packet */
 	if (tcplen < tcph->doff*4 || tcph->doff*4 < sizeof(struct tcphdr))
@@ -118,7 +120,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 		return 0;
 
 	/* tcph->doff has 4 bits, do not wrap it to 0 */
-	if (tcph->doff >= 15)
+	if (tcphlen >= 15 * 4)
 		return 0;
 
 	/*
