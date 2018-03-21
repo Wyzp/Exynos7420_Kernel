@@ -59,7 +59,6 @@ typedef enum {
 	GPU_L5,
 	GPU_L6,
 	GPU_L7,
-	GPU_L8,
 	GPU_MAX_LEVEL,
 } gpu_clock_level;
 
