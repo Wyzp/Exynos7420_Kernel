@@ -200,7 +200,7 @@ CROSS_COMPILE   ?= ../PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-and
 
 ifeq ($(shell uname -s),Linux)
   ifeq ($(shell uname -m),x86_64)
-    override CROSS_COMPILE	:= $(srctree)/../../../prebuilts/linaro/linux-x86/aarch64/bin/aarch64-linux-gnu-
+    override CROSS_COMPILE	:= /media/murilo/Linux/S6/android_prebuilts_linaro/linux-x86/aarch64/bin/aarch64-linux-gnu-
   endif
 endif
 
