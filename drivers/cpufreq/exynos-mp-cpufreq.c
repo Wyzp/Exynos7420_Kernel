@@ -153,7 +153,7 @@ static int qos_min_default_value[CL_END] = {PM_QOS_CLUSTER0_FREQ_MIN_DEFAULT_VAL
 
 // reset DVFS
 #ifdef CONFIG_PM
-#define DVFS_RESET_SEC 15
+#define DVFS_RESET_SEC 5
 static struct delayed_work dvfs_reset_work;
 static struct workqueue_struct *dvfs_reset_wq;
 #endif
