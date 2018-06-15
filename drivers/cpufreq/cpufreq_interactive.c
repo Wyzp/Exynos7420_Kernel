@@ -34,6 +34,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/pm_qos.h>
 #include <asm/cputime.h>
+#include <linux/display_state.h>
 
 #ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
 #include <mach/cpufreq.h>
@@ -69,6 +70,8 @@ struct cpufreq_interactive_cpuinfo {
 	int prev_region;
 #endif
 };
+
+extern bool display_on;
 
 static DEFINE_PER_CPU(struct cpufreq_interactive_cpuinfo, cpuinfo);
 
@@ -130,6 +133,7 @@ static unsigned int cluster0_min_freq=0;
 }
 #endif /* CONFIG_MODE_AUTO_CHANGE */
 
+
 struct cpufreq_interactive_tunables {
 	int usage_count;
 	/* Hi speed to bump to from lo speed when load burst (default max) */
@@ -145,6 +149,9 @@ struct cpufreq_interactive_tunables {
 	 * The minimum amount of time to spend at a frequency before we can ramp
 	 * down.
 	 */
+	/* Maximum frequency while the screen is off */
+#define DEFAULT_SCREEN_OFF_MAX 200000
+	unsigned long screen_off_max;
 #define DEFAULT_MIN_SAMPLE_TIME (80 * USEC_PER_MSEC)
 	unsigned long min_sample_time;
 	/*
@@ -225,7 +232,9 @@ struct cpufreq_interactive_tunables {
 
 	unsigned int sampling_down_factor;
 #endif
+
 };
+
 
 /* For cases where we have single governor instance for system */
 static struct cpufreq_interactive_tunables *common_tunables;
@@ -987,6 +996,7 @@ static int cpufreq_interactive_speedchange_task(void *data)
 	cpumask_t tmp_mask;
 	cpumask_t policy_mask;
 	unsigned long flags;
+ 	struct cpufreq_interactive_tunables *tunables;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 
 	while (1) {
@@ -1035,6 +1045,11 @@ static int cpufreq_interactive_speedchange_task(void *data)
 				if (pjcpu->target_freq > max_freq)
 					max_freq = pjcpu->target_freq;
 			}
+			
+			tunables = pcpu->policy->governor_data;
+			if (unlikely(!display_on))
+			    if (max_freq > tunables->screen_off_max) max_freq = tunables->screen_off_max;
+
 
 			if (max_freq != pcpu->policy->cur) {
 				u64 now;
@@ -1503,6 +1518,32 @@ static ssize_t store_freq_max(struct cpufreq_interactive_tunables *tunables,
 	return count;
 }
 
+static ssize_t show_screen_off_maxfreq(
+		struct cpufreq_interactive_tunables *tunables,
+                char *buf)
+{
+	return sprintf(buf, "%lu\n", tunables->screen_off_max);
+}
+
+static ssize_t store_screen_off_maxfreq(
+		struct cpufreq_interactive_tunables *tunables,
+                const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val < 400000)
+		tunables->screen_off_max = DEFAULT_SCREEN_OFF_MAX;
+	else
+		tunables->screen_off_max = val;
+
+	return count;
+}
+
 #ifdef CONFIG_MODE_AUTO_CHANGE
 static ssize_t show_mode(struct cpufreq_interactive_tunables
 		*tunables, char *buf)
@@ -1860,6 +1901,7 @@ show_store_gov_pol_sys(timer_slack);
 show_store_gov_pol_sys(io_is_busy);
 show_store_gov_pol_sys(freq_min);
 show_store_gov_pol_sys(freq_max);
+show_store_gov_pol_sys(screen_off_maxfreq);
 
 #ifdef CONFIG_MODE_AUTO_CHANGE
 show_store_gov_pol_sys(mode);
@@ -1902,6 +1944,7 @@ gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(io_is_busy);
 gov_sys_pol_attr_rw(freq_min);
 gov_sys_pol_attr_rw(freq_max);
+gov_sys_pol_attr_rw(screen_off_maxfreq);
 #ifdef CONFIG_MODE_AUTO_CHANGE
 gov_sys_pol_attr_rw(mode);
 gov_sys_pol_attr_rw(enforced_mode);
@@ -1945,6 +1988,7 @@ static struct attribute *interactive_attributes_gov_sys[] = {
 	&io_is_busy_gov_sys.attr,
 	&freq_min_gov_sys.attr,
 	&freq_max_gov_sys.attr,
+	&screen_off_maxfreq_gov_sys.attr,
 #ifdef CONFIG_MODE_AUTO_CHANGE
 	&mode_gov_sys.attr,
 	&enforced_mode_gov_sys.attr,
@@ -1984,6 +2028,7 @@ static struct attribute *interactive_attributes_gov_pol[] = {
 	&io_is_busy_gov_pol.attr,
 	&freq_min_gov_pol.attr,
 	&freq_max_gov_pol.attr,
+	&screen_off_maxfreq_gov_pol.attr,
 #ifdef CONFIG_MODE_AUTO_CHANGE
 	&mode_gov_pol.attr,
 	&enforced_mode_gov_pol.attr,
@@ -2174,6 +2219,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			tunables->multi_cluster0_min_freq = DEFAULT_MULTI_CLUSTER0_MIN_FREQ;
 			tunables->freq_min = policy->min;
 			tunables->freq_max = policy->max;
+			tunables->screen_off_max = DEFAULT_SCREEN_OFF_MAX;
 
 			cpufreq_param_set_init(tunables);
 #endif
@@ -2637,6 +2683,8 @@ static int __init cpufreq_interactive_init(void)
 {
 	unsigned int i;
 	struct cpufreq_interactive_cpuinfo *pcpu;
+
+	display_on = true;
 
 	/* Initalize per-cpu timers */
 	for_each_possible_cpu(i) {
